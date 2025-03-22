@@ -21,6 +21,7 @@ type MCPConfig struct {
 	} `json:"mcpServers"`
 }
 
+
 func mcpToolsToAnthropicTools(serverName string, mcpTools []mcp.Tool) []anthropic.ToolParam {
 	anthropicTools := make([]anthropic.ToolParam, len(mcpTools))
 	for i, tool := range mcpTools {
@@ -79,6 +80,22 @@ func creaeteMCPClients(config *MCPConfig) (map[string]*mcpclient.StdioMCPClient,
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-        log.Info()
+		log.Info("Initializing server...", "name", name)
+		initRequest := mcp.InitializeRequest{}
+		initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
+		initRequest.Params.ClientInfo = mcp.Implementation{
+			Name:    "mcphost",
+			Version: "0.1.0",
+		}
+		_, err = client.Initialize(ctx, initRequest)
+		if err != nil {
+			client.Close()
+			for _, c := range clients {
+				c.Close()
+			}
+			return nil, fmt.Errorf("failed to initialize MCP client for %s: %w", name, err)
+		}
+		clients[name] = client
 	}
+	return clients, nil
 }
