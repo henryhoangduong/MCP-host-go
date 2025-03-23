@@ -8,19 +8,20 @@ import (
 	"path/filepath"
 	"time"
 
+	mcpclient "github.com/mark3labs/mcp-go/client"
+
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/gofiber/fiber/v2/log"
-	mcpclient "github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
 type MCPConfig struct {
 	MCPServers map[string]struct {
-		Command string   `json:"command"`
-		Args    []string `json:"command"`
+		Command string            `json:"command"`
+		Args    []string          `json:"command"`
+		Env     map[string]string `json:"env,omitempty"`
 	} `json:"mcpServers"`
 }
-
 
 func mcpToolsToAnthropicTools(serverName string, mcpTools []mcp.Tool) []anthropic.ToolParam {
 	anthropicTools := make([]anthropic.ToolParam, len(mcpTools))
@@ -71,7 +72,11 @@ func loadMCPConfig() (*MCPConfig, error) {
 func creaeteMCPClients(config *MCPConfig) (map[string]*mcpclient.StdioMCPClient, error) {
 	clients := make(map[string]*mcpclient.StdioMCPClient)
 	for name, server := range config.MCPServers {
-		client, err := mcpclient.NewStdioMCPClient(server.Command, server.Args...)
+		var env []string
+		for k, v := range server.Env {
+			env = append(env, fmt.Sprintf("%s=%s", k, v))
+		}
+		client, err := mcpclient.NewStdioMCPClient(server.Command, env, server.Args...)
 		if err != nil {
 			for _, c := range clients {
 				c.Close()
