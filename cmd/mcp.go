@@ -17,9 +17,8 @@ import (
 
 type MCPConfig struct {
 	MCPServers map[string]struct {
-		Command string            `json:"command"`
-		Args    []string          `json:"command"`
-		Env     map[string]string `json:"env,omitempty"`
+		Command string   `json:"command"`
+		Args    []string `json:"args"`
 	} `json:"mcpServers"`
 }
 
@@ -53,9 +52,26 @@ func loadMCPConfig() (*MCPConfig, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error getting home directory: %w", err)
 		}
-		configPath = filepath.Join(homeDir, "mcp.json")
+		configPath = filepath.Join(homeDir, ".mcp.json")
 	}
 
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		defaultConfig := MCPConfig{
+			MCPServers: make(map[string]struct {
+				Command string   `json:"command"`
+				Args    []string `json:"args"`
+			}),
+		}
+		configData, err := json.MarshalIndent(defaultConfig, "", " ")
+		if err != nil {
+			return nil, fmt.Errorf("error creating default config: %w", err)
+		}
+		if err := os.WriteFile(configPath, configData, 0644); err != nil {
+			return nil, fmt.Errorf("error writing default config file: %w", err)
+		}
+		log.Info("Created default config file", "path", configPath)
+		return &defaultConfig, nil
+	}
 	configData, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("error reading config file %s: %w", configPath, err)
@@ -76,7 +92,7 @@ func creaeteMCPClients(config *MCPConfig) (map[string]*mcpclient.StdioMCPClient,
 		for k, v := range server.Env {
 			env = append(env, fmt.Sprintf("%s=%s", k, v))
 		}
-		client, err := mcpclient.NewStdioMCPClient(server.Command, env, server.Args...)
+		client, err := mcpclient.NewStdioMCPClient(server.Command, server.Args...)
 		if err != nil {
 			for _, c := range clients {
 				c.Close()
