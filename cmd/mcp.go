@@ -88,10 +88,7 @@ func loadMCPConfig() (*MCPConfig, error) {
 func creaeteMCPClients(config *MCPConfig) (map[string]*mcpclient.StdioMCPClient, error) {
 	clients := make(map[string]*mcpclient.StdioMCPClient)
 	for name, server := range config.MCPServers {
-		var env []string
-		for k, v := range server.Env {
-			env = append(env, fmt.Sprintf("%s=%s", k, v))
-		}
+
 		client, err := mcpclient.NewStdioMCPClient(server.Command, server.Args...)
 		if err != nil {
 			for _, c := range clients {
